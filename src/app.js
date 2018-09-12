@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 /* eslint semi: ["error", "never"] */
-/* global keypair */
 
 require('dotenv').config()
 const fs = require('fs')
@@ -11,7 +10,6 @@ const nacl = require('tweetnacl')
 nacl.util = require('tweetnacl-util')
 
 const username = 'ahrjarrett'
-// The object you'll be interfacing with to communicate with github
 const github = octokit({ debug: true })
 const server = express()
 
@@ -26,6 +24,12 @@ github.authenticate({
 })
 
 // TODO:  Attempt to load the key from config.json.  If it is not found, create a new 32 byte key.
+// publicKey is 32-byte Uint8Array
+// secretKey is 64-byte Uint8Array
+const { publicKey, secretKey } = nacl.sign.keyPair()
+
+console.log('publicKey', publicKey)
+console.log('secretKey', secretKey)
 
 server.get('/', (req, res) => {
   // Return a response that documents the other routes/operations available
@@ -82,6 +86,7 @@ server.get('/', (req, res) => {
 
 server.get('/keyPairGen', (req, res) => {
   // TODO:  Generate a keypair from the secretKey and display both
+  let keypair
 
   // Display both keys as strings
   res.send(`
