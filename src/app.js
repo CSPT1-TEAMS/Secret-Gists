@@ -26,7 +26,28 @@ github.authenticate({
 
 // TODO:  Attempt to load the key from config.json.  If it is not found, create a new 32 byte key.
 // private key
-const githubkey = process.env.GITHUB_TOKEN ? _________ : nacl.randomBytes(32);
+let secretKey;
+// i. if config.json file exists AND secret key is there
+try {
+  // open config.json
+  const data = fs.readFileSync('./config.json');
+  // parse JSON string
+  const keyObject = JSON.parse(data);
+  // NaCl wants the key to be a array of bytes?
+  secretKey = nacl.util.decodeBase64(keyObject.secretKey);
+} catch (err) {
+  // create key object as an array of bytes to keep NaCl happy
+  secretKey = nacl.randomBytes(32);
+  const keyObject = { secretKey: nacl.util.encodeBase64(secretKey) };
+  // write key to config.json
+  fs.writeFile('./config.json', JSON.stringify(keyObject), (ferr) => {
+    if (ferr) {
+      console.log('Error writing secret key to config file: ', ferr.message);
+      return;
+    }
+  });
+}
+// const githubkey = process.env.GITHUB_TOKEN ? _________ : nacl.randomBytes(32);
 
 
 server.get('/', (req, res) => {
@@ -114,6 +135,7 @@ server.get('/gists', (req, res) => {
 
 server.get('/key', (req, res) => {
   // TODO: Display the secret key used for encryption of secret gists
+  res.send(nacl.util.encodeBase64(secretKey));
 });
 
 server.get('/setkey:keyString', (req, res) => {
@@ -121,14 +143,38 @@ server.get('/setkey:keyString', (req, res) => {
   const keyString = req.query.keyString;
   try {
     // TODO:
+    secretKey = nacl.util.decodeBase64(keyString);
+    const keyObject = { secretKey: keyString };
+    // write key to config.json
+    fs.writeFile('./config.json', JSON.stringify(keyObject), (ferr) => {
+      if (ferr) {
+        console.log('Error writing secret key to config file: ', ferr.message);
+        return;
+      }
+    });
+    res.send(`<div>Key set to value of ${secretKey} </div>`);
   } catch (err) {
     // failed
+    console.log('This is the error', err);
     res.send('Failed to set key.  Key string appears invalid.');
   }
 });
 
 server.get('/fetchmessagefromself:id', (req, res) => {
   // TODO:  Retrieve and decrypt the secret gist corresponding to the given ID
+  const id = req.params.id;
+  github.gists.get({ id })
+    .then((response) => {
+      console.log(id);
+      console.log('response', response.data);
+      // const nonce = nacl.util.decodeBase64(____.slice(0,32));
+      // const ciphertext = nacl.util.decodeBase64(___.slice(32, ____.length));
+      // const text = nacl.secretbox.open(____, nonce, secretKey);
+      // res.send(text)
+    })
+    .catch((err) => {
+      res.json(err);
+    });
 });
 
 server.post('/create', urlencodedParser, (req, res) => {
@@ -147,6 +193,20 @@ server.post('/create', urlencodedParser, (req, res) => {
 server.post('/createsecret', urlencodedParser, (req, res) => {
   // TODO:  Create a private and encrypted gist with given name/content
   // NOTE - we're only encrypting the content, not the filename
+  const { name, content } = req.body;
+  const nonce = nacl.randomBytes(24);
+  const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
+
+  const newContent = nacl.util.encodeBase64(nonce) + nacl.util.encodeBase64(ciphertext);
+
+  const files = { [name]: { content: newContent } };
+  github.gists.create({ files, public: false })
+    .then((response) => {
+      res.json(response.data);
+    })
+    .catch((err) => {
+      res.json(err);
+    });
 });
 
 server.post('/postmessageforfriend', urlencodedParser, (req, res) => {
