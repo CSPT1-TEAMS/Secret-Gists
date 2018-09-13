@@ -144,7 +144,12 @@ server.get('/setkey:keyString', (req, res) => {
   // TODO: Set the key to one specified by the user or display an error if invalid
   const keyString = req.query.keyString;
   try {
-    // TODO:
+    if (keyString) {
+      // nacl.util.encodeBase62(keyString);
+      console.log('THIS is tring', keyString);
+      res.send(`${nacl.util.encodeBase64(keyString)}\n`);
+      console.log('encode', keyString);
+    }
   } catch (err) {
     // failed
     res.send('Failed to set key.  Key string appears invalid.');
