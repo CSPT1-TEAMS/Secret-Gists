@@ -178,9 +178,19 @@ server.post('/createsecret', urlencodedParser, (req, res) => {
   const { name, content } = req.body;
   const nonce = nacl.randomBytes(24);
   const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
+  // console.log('CT', ciphertext);
   // SOOO append or prepend nonce to encrpyted content
+  const encryptedContent = nacl.util.encodeBase64(nonce) + nacl.util.encodeBase64(ciphertext);
+  console.log(encryptedContent);
   // format how github API expects gists
-  const file = { [name]: { content: encryptedContent } }
+  const files = { [name]: { content: encryptedContent } };
+  github.gists.create({ files, public: false })
+    .then((response) => {
+      res.json(response.data);
+    })
+    .catch((err) => {
+      res.json(err);
+    });
 });
 
 server.post('/postmessageforfriend', urlencodedParser, (req, res) => {
