@@ -24,7 +24,26 @@ github.authenticate({
 });
 
 // TODO:  Attempt to load the key from config.json.  If it is not found, create a new 32 byte key.
-const keypair = {};
+let secretKey;
+// i. if config.json AND secret key
+try {
+  // open config.json
+  const data = fs.readFileSync('./config.json');
+  // parse JSON string
+  const keyObject = JSON.parse(data);
+  // NaCl wants the key to be an array of bytes
+  secretKey = nacl.util.decodeBase64(keyObject.secretKey);
+} catch (err) {
+  secretKey = nacl.randomBytes(32);
+  // create key object as a _________ to keep NaCl happy
+  const keyObject = { secretKey: nacl.util.encodeBase64(secretKey) };
+  fs.writeFile('./config.json', JSON.stringify(keyObject), (ferr) => {
+    if (ferr) {
+      console.log('Error writing to config file', ferr.message);
+      return;
+    }
+  });
+}
 
 server.get('/', (req, res) => {
   // Return a response that documents the other routes/operations available
@@ -80,6 +99,7 @@ server.get('/', (req, res) => {
 });
 
 server.get('/keyPairGen', (req, res) => {
+  let keypair;
   // TODO:  Generate a keypair from the secretKey and display both
   // Display both keys as strings
   res.send(`
@@ -110,21 +130,33 @@ server.get('/gists', (req, res) => {
 
 server.get('/key', (req, res) => {
   // TODO: Display the secret key used for encryption of secret gists
+  res.send(nacl.util.encodeBase64(secretKey));
 });
 
 server.get('/setkey:keyString', (req, res) => {
   // TODO: Set the key to one specified by the user or display an error if invalid
   const keyString = req.query.keyString;
   try {
+    secretKey = nacl.util.decodeBase64(keyString);
+    const keyObject = { secretKey: keyString };
+    fs.writeFile('./config.json', JSON.stringify(keyObject), (ferr) => {
+      if (ferr) {
+        console.log('Error writing key to config file');
+        return;
+      }
+    });
+    res.send(`<div>Key successfully changed. \n Key set to new value: ${secretKey} </div>`);
     // TODO:
   } catch (err) {
     // failed
+    console.log(err);
     res.send('Failed to set key.  Key string appears invalid.');
   }
 });
 
 server.get('/fetchmessagefromself:id', (req, res) => {
   // TODO:  Retrieve and decrypt the secret gist corresponding to the given ID
+
 });
 
 server.post('/create', urlencodedParser, (req, res) => {
@@ -143,6 +175,12 @@ server.post('/create', urlencodedParser, (req, res) => {
 server.post('/createsecret', urlencodedParser, (req, res) => {
   // TODO:  Create a private and encrypted gist with given name/content
   // NOTE - we're only encrypting the content, not the filename
+  const { name, content } = req.body;
+  const nonce = nacl.randomBytes(24);
+  const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
+  // SOOO append or prepend nonce to encrpyted content
+  // format how github API expects gists
+  const file = { [name]: { content: encryptedContent } }
 });
 
 server.post('/postmessageforfriend', urlencodedParser, (req, res) => {
