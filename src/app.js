@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+/* global keypair */
 
 require('dotenv').config();
 const fs = require('fs');
@@ -8,7 +9,7 @@ const octokit = require('@octokit/rest');
 const nacl = require('tweetnacl');
 nacl.util = require('tweetnacl-util');
 
-const username = 'your_name_here'; // TODO: Replace with your username
+const username = 'KryoKorpz'; // TODO: Replace with your username
 // The object you'll be interfacing with to communicate with github
 const github = octokit({ debug: true });
 const server = express();
@@ -22,9 +23,21 @@ github.authenticate({
   type: 'oauth',
   token: process.env.GITHUB_TOKEN
 });
-
-// TODO:  Attempt to load the key from config.json.  If it is not found, create a new 32 byte key.
-
+let secretKey;
+try {
+  const data = fs.readFileSync('./config.json');
+  const keyObject = JSON.parse(data);
+  secretKey = nacl.util.decodeBase64(keyObject.secretKey);
+} catch (err) {
+  secretKey = nacl.randomBytes(32);
+  const keyObject = { secretKey: nacl.util.encodeBase64(secretKey) };
+  fs.writeFile('./config.json', JSON.stringify(keyObject), (ferr) => {
+    if (ferr) {
+      console.log('Error writing secret key to config file: ', ferr.message);
+      return;
+    }
+  });
+}
 server.get('/', (req, res) => {
   // Return a response that documents the other routes/operations available
   res.send(`
@@ -109,6 +122,11 @@ server.get('/gists', (req, res) => {
 });
 
 server.get('/key', (req, res) => {
+  try {
+    res.send(secretKey);
+  } catch (err) {
+    res.send(err);
+  }
   // TODO: Display the secret key used for encryption of secret gists
 });
 
@@ -116,6 +134,7 @@ server.get('/setkey:keyString', (req, res) => {
   // TODO: Set the key to one specified by the user or display an error if invalid
   const keyString = req.query.keyString;
   try {
+    secretKey = nacl.util.encodeBase64(keyString);
     // TODO:
   } catch (err) {
     // failed
