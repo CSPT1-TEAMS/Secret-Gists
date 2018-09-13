@@ -159,7 +159,8 @@ server.get('/fetchmessagefromself:id', (req, res) => {
   const id = req.query.id;
   github.gists.get({ id })
     .then((response) => {
-      console.log(response)
+      // working to fine tune where gist content and nonce are in res
+      console.log(response.data.filename)
       res.json(response.data);
     })
     .catch((err) => {
@@ -185,6 +186,7 @@ server.post('/createsecret', urlencodedParser, (req, res) => {
   // NOTE - we're only encrypting the content, not the filename
   const { name, content } = req.body;
   const nonce = nacl.randomBytes(24);
+  console.log('NONCE', nonce)
   const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
   // SOOO append or prepend nonce to encrpyted content
   const encryptedContent = nacl.util.encodeBase64(nonce) + nacl.util.encodeBase64(ciphertext);
