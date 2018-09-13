@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* eslint-disable*/
 
 require('dotenv').config();
 const fs = require('fs');
@@ -156,7 +156,15 @@ server.get('/setkey:keyString', (req, res) => {
 
 server.get('/fetchmessagefromself:id', (req, res) => {
   // TODO:  Retrieve and decrypt the secret gist corresponding to the given ID
-
+  const id = req.query.id;
+  github.gists.get({ id })
+    .then((response) => {
+      console.log(response)
+      res.json(response.data);
+    })
+    .catch((err) => {
+      res.json(err);
+    });
 });
 
 server.post('/create', urlencodedParser, (req, res) => {
@@ -178,10 +186,8 @@ server.post('/createsecret', urlencodedParser, (req, res) => {
   const { name, content } = req.body;
   const nonce = nacl.randomBytes(24);
   const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
-  // console.log('CT', ciphertext);
   // SOOO append or prepend nonce to encrpyted content
   const encryptedContent = nacl.util.encodeBase64(nonce) + nacl.util.encodeBase64(ciphertext);
-  console.log(encryptedContent);
   // format how github API expects gists
   const files = { [name]: { content: encryptedContent } };
   github.gists.create({ files, public: false })
