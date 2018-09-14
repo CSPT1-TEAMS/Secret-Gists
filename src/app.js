@@ -160,27 +160,30 @@ server.get('/fetchmessagefromself:id', (req, res) => {
   github.gists.get({ id })
     .then((response) => {
       // working to fine tune where gist content and nonce are in res
-      let content = ''
-      let resData = response.data.files
-      for (let key in resData) {
-        if (!resData.hasOwnProperty(key)) continue;
-        let obj = resData[key]
-        for (let prop in obj) {
-          if(!obj.hasOwnProperty(prop)) continue;
-          content = obj.content
-        }
-      }
-      const gist = response.data;
-      const filename = Object.keys(gist.files)[0]
-      const nonce = nacl.util.decodeBase64(content.slice(0, 32))
-      const stillCoded = nacl.util.decodeBase64(content.slice(32));
-      console.log('STILL', stillCoded)
-      const decoded = nacl.secretbox.open(stillCoded, nonce, secretKey)
-      console.log('DE', decoded)
+      // let content = ''
+      // let resData = response.data.files
+      // for (let key in resData) {
+      //   if (!resData.hasOwnProperty(key)) continue;
+      //   let obj = resData[key]
+      //   for (let prop in obj) {
+      //     if(!obj.hasOwnProperty(prop)) continue;
+      //     content = obj.content
+      //   }
+      // }
+      const filename = Object.keys(response.data.files)[0]
+      const stillCoded = response.data.files[filename].content;
+      const nonce = nacl.util.decodeBase64(stillCoded.slice(0, 32));
+      const box = nacl.util.decodeBase64(stillCoded.slice(32))
+      // const strNonce = encryptedContent.slice(0, 32);
+      // const nonce = nacl.util.decodeBase64(strNonce)
+      // const stillCoded = nacl.util.decodeBase64(content.slice(32));
+      // console.log('STILL', stillCoded)
+      const decoded = nacl.secretbox.open(box, nonce, secretKey)
+      // console.log('DE', decoded)
+      const text = nacl.util.encodeUTF8(decoded)
     // console.log('CONTENT', content)
-    // const msgWithNonce = decodeBase64(content)
-    // console.log('MSG', msgWithNonce)
-      res.json(nacl.util.encodeUTF8(filename, decoded));
+      const fullGist = `${filename}: ${text}`;
+      res.json(fullGist);
     })
     .catch((err) => {
       res.json(err);
