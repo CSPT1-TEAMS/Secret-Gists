@@ -162,7 +162,6 @@ server.get('/fetchmessagefromself:id', (req, res) => {
       // working to fine tune where gist content and nonce are in res
       let content = ''
       let resData = response.data.files
-      console.log(resData)
       for (let key in resData) {
         if (!resData.hasOwnProperty(key)) continue;
         let obj = resData[key]
@@ -171,9 +170,17 @@ server.get('/fetchmessagefromself:id', (req, res) => {
           content = obj.content
         }
       }
-    console.log('CONTENT', content)
-      // console.log('RES', response.data.files.content)
-      res.json(response.data);
+      const gist = response.data;
+      const filename = Object.keys(gist.files)[0]
+      const nonce = nacl.util.decodeBase64(content.slice(0, 32))
+      const stillCoded = nacl.util.decodeBase64(content.slice(32));
+      console.log('STILL', stillCoded)
+      const decoded = nacl.secretbox.open(stillCoded, nonce, secretKey)
+      console.log('DE', decoded)
+    // console.log('CONTENT', content)
+    // const msgWithNonce = decodeBase64(content)
+    // console.log('MSG', msgWithNonce)
+      res.json(nacl.util.encodeUTF8(filename, decoded));
     })
     .catch((err) => {
       res.json(err);
@@ -198,7 +205,6 @@ server.post('/createsecret', urlencodedParser, (req, res) => {
   // NOTE - we're only encrypting the content, not the filename
   const { name, content } = req.body;
   const nonce = nacl.randomBytes(24);
-  console.log('NONCE', nonce)
   const ciphertext = nacl.secretbox(nacl.util.decodeUTF8(content), nonce, secretKey);
   // SOOO append or prepend nonce to encrpyted content
   const encryptedContent = nacl.util.encodeBase64(nonce) + nacl.util.encodeBase64(ciphertext);
