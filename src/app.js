@@ -160,7 +160,19 @@ server.get('/fetchmessagefromself:id', (req, res) => {
   github.gists.get({ id })
     .then((response) => {
       // working to fine tune where gist content and nonce are in res
-      console.log(response.data.filename)
+      let content = ''
+      let resData = response.data.files
+      console.log(resData)
+      for (let key in resData) {
+        if (!resData.hasOwnProperty(key)) continue;
+        let obj = resData[key]
+        for (let prop in obj) {
+          if(!obj.hasOwnProperty(prop)) continue;
+          content = obj.content
+        }
+      }
+    console.log('CONTENT', content)
+      // console.log('RES', response.data.files.content)
       res.json(response.data);
     })
     .catch((err) => {
