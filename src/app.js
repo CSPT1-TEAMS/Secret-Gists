@@ -8,7 +8,7 @@ const octokit = require('@octokit/rest');
 const nacl = require('tweetnacl');
 nacl.util = require('tweetnacl-util');
 
-const username = 'your_name_here'; // TODO: Replace with your username
+const username = 'ravb2019'; // TODO: Replace with your username
 // The object you'll be interfacing with to communicate with github
 const github = octokit({ debug: true });
 const server = express();
@@ -24,6 +24,22 @@ github.authenticate({
 });
 
 // TODO:  Attempt to load the key from config.json.  If it is not found, create a new 32 byte key.
+let keypair = {};
+let secretKey = {};
+try {
+  keypair = fs.readFileSync('./config.json');
+  const keyObject = JSON.parse(keypair);
+  secretKey = { secretKey: keyObject.secretKey };
+} catch (err) {
+  const keyString = nacl.util.encodeBase64(nacl.randomBytes(32));
+  try {
+    fs.writeFileSync('./config.json', JSON.stringify({ secretKey: keyString }));
+  } catch (error) {
+    console.log('Something went wrong while writing keypair to file.');
+  }
+  // console.log(keyString);
+  // console.log(nacl.util.decodeUTF8(keyString));
+}
 
 server.get('/', (req, res) => {
   // Return a response that documents the other routes/operations available
@@ -110,13 +126,17 @@ server.get('/gists', (req, res) => {
 
 server.get('/key', (req, res) => {
   // TODO: Display the secret key used for encryption of secret gists
+  res.send(JSON.parse(fs.readFileSync('./config.json')).secretKey);
 });
 
 server.get('/setkey:keyString', (req, res) => {
   // TODO: Set the key to one specified by the user or display an error if invalid
   const keyString = req.query.keyString;
   try {
-    // TODO:
+    // let currentKeyString = JSON.parse(fs.readFileSync('./config.json')).secretKey;
+    // console.log(nacl.util.decodeUTF8(keyString));
+    fs.writeFileSync('./config.json', JSON.stringify({ secretKey: keyString }));
+    return res.send(nacl.util.decodeUTF8(keyString));
   } catch (err) {
     // failed
     res.send('Failed to set key.  Key string appears invalid.');
